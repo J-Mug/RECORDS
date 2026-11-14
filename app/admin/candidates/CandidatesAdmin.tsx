@@ -29,6 +29,8 @@ type Candidate = {
   song_mbid: string | null;
   status: CandidateStatus;
   created_at: string;
+  ai_reason: string | null;
+  metadata: { review_flag?: string; review_flag_reason?: string } | null;
 };
 
 const KINDS: Array<CandidateKind | "ALL"> = ["ALL", "ARTIST", "ALBUM", "SONG"];
@@ -55,6 +57,41 @@ export default function CandidatesAdmin() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [mergeFor, setMergeFor] = useState<string | null>(null);
   const [mergeTarget, setMergeTarget] = useState("");
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkResult, setBulkResult] = useState<string | null>(null);
+
+
+  async function bulkApprove() {
+    if (!config.ready) return;
+    if (!window.confirm("중복이 아닌 후보를 모두 승인할까요? 애매한 항목은 검토 대기 상태로 남습니다.")) return;
+    setBulkBusy(true);
+    setError(null);
+    setBulkResult(null);
+    const supabase = getSupabaseBrowserClient();
+    const { data, error: rpcError } = await supabase.rpc("bulk_approve_unique_candidates");
+    setBulkBusy(false);
+    if (rpcError) {
+      setError(rpcError.message);
+      return;
+    }
+    const result = data as {
+      approved?: number;
+      merged_across_releases?: number;
+      left_for_review?: number;
+      flagged_ambiguous?: number;
+      errors?: number;
+      left_reason_breakdown?: Record<string, number>;
+    } | null;
+    const reasons = result?.left_reason_breakdown
+      ? Object.entries(result.left_reason_breakdown)
+          .map(([k, v]) => `${k}: ${v}`)
+          .join(", ")
+      : "없음";
+    setBulkResult(
+      `승인 ${result?.approved ?? 0}건, 다른 발매로 병합 ${result?.merged_across_releases ?? 0}건, 검토 대기 ${result?.left_for_review ?? 0}건 (${reasons}), 오류 ${result?.errors ?? 0}건`,
+    );
+    await load();
+  }
 
   const load = useCallback(async () => {
     if (!config.ready) return;
@@ -62,7 +99,7 @@ export default function CandidatesAdmin() {
     let query = supabase
       .from("music_candidate")
       .select(
-        "id, source, source_url, artist_name, album_name, song_name, release_date, candidate_kind, artist_mbid, album_mbid, song_mbid, status, created_at",
+        "id, source, source_url, artist_name, album_name, song_name, release_date, candidate_kind, artist_mbid, album_mbid, song_mbid, status, created_at, ai_reason, metadata",
         { count: "exact" },
       )
       .order("created_at", { ascending: true })
@@ -224,6 +261,17 @@ export default function CandidatesAdmin() {
           ))}
         </div>
         <p className="admin-count">{total}건 (최대 200건 표시)</p>
+        <div className="bulk-bar">
+          <button
+            className="btn btn-fill"
+            type="button"
+            disabled={bulkBusy}
+            onClick={() => void bulkApprove()}
+          >
+            {bulkBusy ? "일괄 승인 중…" : "중복 없는 후보 일괄 승인"}
+          </button>
+          {bulkResult ? <p className="admin-lead" style={{ margin: 0 }}>{bulkResult}</p> : null}
+        </div>
       </div>
 
       {error ? <p className="admin-error">{error}</p> : null}
@@ -286,7 +334,12 @@ export default function CandidatesAdmin() {
                         mbid
                       )}
                     </td>
-                    <td>{row.status}</td>
+                    <td>
+                      <div>{row.status}</div>
+                      {row.metadata?.review_flag || row.ai_reason ? (
+                        <div className="admin-sub">{row.metadata?.review_flag || row.ai_reason}</div>
+                      ) : null}
+                    </td>
                     <td>
                       {row.status === "NEEDS_REVIEW" || row.status === "PENDING" ? (
                         <div className="admin-actions">

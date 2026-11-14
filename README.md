@@ -51,3 +51,19 @@ npm run ingest:musicbrainz
 Copy `.env.example` to `.env.local` and add the project's URL and publishable/anon key. Do not commit service-role keys.
 
 Admin review (approve / reject / merge) lives at `/admin/candidates` and requires `profiles.role = 'admin'`.
+
+Admin bulk-approve (unique candidates only; ambiguous rows stay in review):
+
+```bash
+npm run approve:unique
+```
+
+Or use the button on `/admin/candidates`.
+
+YouTube mappings are taken only from MusicBrainz URL relations (no scraping):
+
+```bash
+npm run ingest:mb-youtube
+```
+
+Catalog routes: `/search`, `/artist/[id]`, `/album/[id]`, `/song/[id]`.
