@@ -30,7 +30,9 @@ npm run deploy
 
 That runs `opennextjs-cloudflare build && opennextjs-cloudflare deploy`.
 
-The Worker name in `wrangler.jsonc` is `records`. Change it if your existing Cloudflare project uses a different Workers name (the project is referred to as RECORDS). Do not add bindings or secrets until those resources exist.
+The Worker name in `wrangler.jsonc` is `records` (account `a1994605882614d0dc50a1e72ba9bdc3`). Public catalog env (`NEXT_PUBLIC_SUPABASE_URL` and the anon key) is set in `wrangler.jsonc` `vars` so it is available at runtime, and is also read from `.env.local` during `opennextjs-cloudflare build`. Do not add `ADMIN_PASSWORD` or `SUPABASE_SERVICE_ROLE_KEY` to the Worker; ingest and admin review do not need them at runtime.
+
+Live URL: https://records.records-web.workers.dev/
 
 Preview the Worker locally after a Cloudflare build:
 

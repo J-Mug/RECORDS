@@ -50,3 +50,6 @@ next-env.d.ts
 
 # ingest dumps (may contain no secrets, but are generated)
 scripts/.output/
+
+# supabase CLI local cache
+supabase/.temp/

@@ -1,7 +1,8 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  // Worker name must be lowercase. Rename to match the existing Cloudflare project if needed.
+  // Worker name must be lowercase. Targets the existing Cloudflare Worker `records`.
   "name": "records",
+  "account_id": "a1994605882614d0dc50a1e72ba9bdc3",
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-11-14",
   "compatibility_flags": ["nodejs_compat"],
@@ -11,5 +12,11 @@
   },
   "observability": {
     "enabled": true
+  },
+  // Public client env only. Do not put ADMIN_PASSWORD or SUPABASE_SERVICE_ROLE_KEY here;
+  // the Worker does not need those at runtime.
+  "vars": {
+    "NEXT_PUBLIC_SUPABASE_URL": "https://yivjtvkmpulyduqxndej.supabase.co",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlpdmp0dmttcHVseWR1cXhuZGVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE3ODM1ODgsImV4cCI6MjEwNzM1OTU4OH0.xqigwKUfm8dTGe11LmS9_1giAcgihFbW_l-6IzhLaQk"
   }
 }
