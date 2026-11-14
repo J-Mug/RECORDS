@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { PlayerProvider, DockPlayer } from "@/components/player/PlayerProvider";
+import { AuthProvider } from "@/components/auth/AuthProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -27,7 +28,7 @@ export default function RootLayout({
           href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css"
         />
       </head>
-      <body><PlayerProvider>{children}<DockPlayer /></PlayerProvider></body>
+      <body><AuthProvider><PlayerProvider>{children}<DockPlayer /></PlayerProvider></AuthProvider></body>
     </html>
   );
 }

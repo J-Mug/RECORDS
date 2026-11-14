@@ -1,5 +1,6 @@
 "use client";
 
+import { SaveToWalkie } from "@/components/walkie/SaveToWalkie";
 import {
   createContext,
   useCallback,
@@ -162,6 +163,9 @@ export function DockPlayer() {
               YouTube에서 열기
             </a>
           )}
+          <div className="player-save">
+            <SaveToWalkie songId={nowPlaying.songId} compact />
+          </div>
         </div>
         <button className="btn btn-ghost player-close" type="button" onClick={stop}>
           닫기

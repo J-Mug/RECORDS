@@ -3,6 +3,7 @@ import { CatalogNav } from "@/components/catalog/CatalogNav";
 import { EmptyState, ErrorState } from "@/components/catalog/States";
 import { PlaceholderCover } from "@/components/catalog/PlaceholderCover";
 import { PlayButton } from "@/components/catalog/PlayButton";
+import { SaveToWalkie } from "@/components/walkie/SaveToWalkie";
 import {
   createPublicSupabaseClient,
   getSupabasePublicConfig,
@@ -136,6 +137,7 @@ export default async function AlbumPage({ params }: { params: Promise<{ id: stri
                         videoId: videoBySong.get(song.id) ?? null,
                       }}
                     />
+                    <SaveToWalkie songId={song.id} compact />
                   </li>
                 );
               })}

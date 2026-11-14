@@ -67,3 +67,11 @@ npm run ingest:mb-youtube
 ```
 
 Catalog routes: `/search`, `/artist/[id]`, `/album/[id]`, `/song/[id]`.
+
+## Walkie (Phase 4)
+
+Sign up or log in at `/signup` and `/login`. Walkie lives at `/walkie` and is private to the signed-in user (RLS). Save a song from a song, album, or search page, or from the dock player. Tests:
+
+```bash
+npm test
+```

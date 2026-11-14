@@ -3,6 +3,7 @@ import { CatalogNav } from "@/components/catalog/CatalogNav";
 import { ErrorState } from "@/components/catalog/States";
 import { PlaceholderCover } from "@/components/catalog/PlaceholderCover";
 import { PlayButton } from "@/components/catalog/PlayButton";
+import { SaveToWalkie } from "@/components/walkie/SaveToWalkie";
 import {
   createPublicSupabaseClient,
   getSupabasePublicConfig,
@@ -101,6 +102,7 @@ export default async function SongPage({ params }: { params: Promise<{ id: strin
                   videoId: video?.video_id ?? null,
                 }}
               />
+              <SaveToWalkie songId={song.id} />
               {!video ? (
                 <a
                   className="btn btn-ghost"

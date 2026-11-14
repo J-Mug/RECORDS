@@ -368,3 +368,61 @@ body:has(.player-dock) { padding-bottom: 0; }
   .catalog-shell { padding-bottom: 260px; }
   .track-row-wrap { flex-wrap: wrap; padding-bottom: 10px; }
 }
+
+
+/* Auth + Walkie */
+.catalog-account {
+  display: flex; align-items: center; gap: 14px;
+  font-size: 13px; letter-spacing: 0.08em; flex-shrink: 0;
+}
+.catalog-account a:hover { color: var(--clay); }
+.catalog-account .btn { padding: 8px 14px; font-size: 11px; }
+.search-hit {
+  display: flex; align-items: center; gap: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.search-hit .search-row { flex: 1; border-bottom: 0; }
+.save-walkie { display: inline-flex; flex-direction: column; gap: 4px; }
+.player-save { margin-top: 8px; }
+
+.walkie-new-section, .walkie-rename {
+  display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 24px; max-width: 480px;
+}
+.walkie-new-section input, .walkie-rename input, .walkie-note-edit textarea, .walkie-move select {
+  font-family: inherit; font-size: 15px; color: var(--ink);
+  background: var(--paper); border: 1px solid var(--line); padding: 10px 12px;
+}
+.walkie-new-section input, .walkie-rename input { flex: 1; min-width: 0; }
+.walkie-section { margin-bottom: 28px; padding-bottom: 8px; }
+.walkie-section-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+}
+.walkie-section-head .catalog-section-title { margin: 16px 0; }
+.walkie-section-actions { display: flex; gap: 8px; }
+.walkie-list { list-style: none; }
+.walkie-item {
+  display: flex; gap: 16px; align-items: flex-start;
+  padding: 14px 0; border-bottom: 1px solid var(--line);
+  cursor: grab;
+}
+.walkie-item-main { flex: 1; min-width: 0; }
+.walkie-item-actions {
+  display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end;
+  max-width: 280px;
+}
+.walkie-item-actions .btn { padding: 8px 12px; font-size: 11px; }
+.walkie-note-text { margin-top: 8px; color: var(--ink); font-size: 14px; white-space: pre-wrap; }
+.walkie-note-btn, .walkie-note-add {
+  display: block; width: 100%; text-align: left;
+  background: none; border: 0; font: inherit; color: var(--muted);
+  cursor: pointer; padding: 6px 0 0;
+}
+.walkie-note-edit { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; font-size: 12px; color: var(--muted); }
+.walkie-note-edit textarea { min-height: 72px; resize: vertical; }
+.admin-form a, .admin-lead a { color: var(--clay); border-bottom: 1px solid var(--clay-soft); }
+
+@media (max-width: 720px) {
+  .catalog-account { width: 100%; justify-content: space-between; }
+  .walkie-item, .walkie-item-actions, .search-hit { flex-direction: column; align-items: stretch; }
+  .walkie-item-actions { max-width: none; }
+}

@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { CatalogNav } from "@/components/catalog/CatalogNav";
 import { EmptyState, ErrorState, LoadingState } from "@/components/catalog/States";
 import { PlaceholderCover } from "@/components/catalog/PlaceholderCover";
+import { SaveToWalkie } from "@/components/walkie/SaveToWalkie";
 import {
   createPublicSupabaseClient,
   getSupabasePublicConfig,
@@ -61,7 +62,7 @@ async function SearchResults({ q }: { q: string }) {
               <h2 className="catalog-section-title">{labels[kind]}</h2>
               <ul className="search-list">
                 {groups[kind].map((hit) => (
-                  <li key={`${hit.entity_kind}-${hit.entity_id}`}>
+                  <li key={`${hit.entity_kind}-${hit.entity_id}`} className="search-hit">
                     <a className="search-row" href={hrefFor(hit)}>
                       <PlaceholderCover seed={hit.entity_id} size="sm" />
                       <span>
@@ -70,6 +71,7 @@ async function SearchResults({ q }: { q: string }) {
                       </span>
                       <span className="kind-pill">{hit.entity_kind}</span>
                     </a>
+                    {hit.entity_kind === "SONG" ? <SaveToWalkie songId={hit.entity_id} compact /> : null}
                   </li>
                 ))}
               </ul>
