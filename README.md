@@ -37,3 +37,17 @@ Preview the Worker locally after a Cloudflare build:
 ```bash
 npm run preview
 ```
+
+## Music data ingestion
+
+Seed J-POP candidates from MusicBrainz (1 request/second, never auto-approved):
+
+```bash
+# Optional: set SUPABASE_SERVICE_ROLE_KEY in untracked .env.local to insert directly.
+# Otherwise the script writes SQL/JSON under scripts/.output/ for a review insert.
+npm run ingest:musicbrainz
+```
+
+Copy `.env.example` to `.env.local` and add the project's URL and publishable/anon key. Do not commit service-role keys.
+
+Admin review (approve / reject / merge) lives at `/admin/candidates` and requires `profiles.role = 'admin'`.

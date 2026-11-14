@@ -208,3 +208,70 @@ section.block { padding: 104px 0; }
   .cover-frame { padding: 20px; }
   .shelf-row { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* Admin review — Draft B tokens, minimal catalog table */
+.admin-shell { min-height: 100vh; background: var(--bg); }
+.admin-bar {
+  width: min(var(--max), calc(100% - var(--pad) * 2));
+  margin-inline: auto;
+  padding: 28px 0 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.admin-bar-links { display: flex; gap: 24px; font-size: 13px; letter-spacing: 0.08em; color: var(--muted); }
+.admin-bar-links a:hover { color: var(--ink); }
+.admin-main {
+  width: min(var(--max), calc(100% - var(--pad) * 2));
+  margin: 32px auto 80px;
+}
+.admin-title {
+  font-family: var(--serif);
+  font-weight: 300;
+  font-size: clamp(32px, 4vw, 48px);
+  line-height: 1.25;
+  margin: 8px 0 12px;
+}
+.admin-lead { color: var(--muted); max-width: 40em; margin-bottom: 28px; }
+.admin-lead code, .admin-form code { font-size: 0.9em; }
+.admin-head { display: flex; justify-content: space-between; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
+.admin-user { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 13px; }
+.admin-form {
+  display: flex; flex-direction: column; gap: 16px;
+  max-width: 360px; background: var(--paper); padding: 28px; border: 1px solid var(--line);
+}
+.admin-form label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; letter-spacing: 0.06em; color: var(--muted); }
+.admin-form input, .admin-merge input {
+  font-family: inherit; font-size: 15px; color: var(--ink);
+  background: var(--bg); border: 1px solid var(--line); padding: 10px 12px;
+}
+.admin-error { color: var(--clay); font-size: 14px; margin: 8px 0 16px; }
+.admin-filters { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+.admin-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  background: transparent; border: 1px solid var(--line); color: var(--muted);
+  font-family: inherit; font-size: 11px; letter-spacing: 0.12em; padding: 6px 12px; cursor: pointer;
+}
+.chip.is-on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.admin-count { font-size: 13px; color: var(--muted); }
+.admin-table-wrap { overflow-x: auto; border-top: 1px solid var(--line); }
+.admin-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.admin-table th {
+  text-align: left; font-weight: 400; font-size: 11px; letter-spacing: 0.14em;
+  color: var(--muted); padding: 14px 12px; border-bottom: 1px solid var(--line);
+}
+.admin-table td { padding: 14px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.admin-empty { color: var(--muted); text-align: center; padding: 40px 12px !important; }
+.admin-sub { color: var(--muted); font-size: 12px; }
+.admin-mbid { font-size: 11px; word-break: break-all; max-width: 180px; }
+.admin-mbid a { border-bottom: 1px solid var(--line); }
+.kind-pill {
+  display: inline-block; font-size: 10px; letter-spacing: 0.12em;
+  border: 1px solid var(--line); padding: 2px 8px; color: var(--muted);
+}
+.admin-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.admin-actions .btn, .admin-merge .btn { padding: 8px 14px; font-size: 11px; }
+.admin-merge { display: flex; gap: 8px; margin-top: 8px; min-width: 220px; }
+@media (max-width: 720px) {
+  .admin-table th:nth-child(4), .admin-table td:nth-child(4) { display: none; }
+}
