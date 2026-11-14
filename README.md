@@ -84,7 +84,7 @@ Each account has a public shop at `/shop/[handle]`. Songs can be displayed only 
 
 ## Instagram archive (Plan A)
 
-The public shop is `/shop/iruli` (short link `/iruli`). Posts are synced from the read-only file `/workspace/instagram/published.jsonl` — never write to that directory.
+The public shop is `/shop/iruli` (short link `/iruli`). Posts are synced from the read-only files `/workspace/instagram/backfill.jsonl` (older posts) and `/workspace/instagram/published.jsonl` — never write to that directory. Either file may be missing until it arrives. Upserts are idempotent by shortcode; if the same shortcode is in both files, `published.jsonl` wins.
 
 ```bash
 npm run sync:instagram

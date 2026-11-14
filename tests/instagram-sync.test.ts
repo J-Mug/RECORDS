@@ -267,4 +267,43 @@ describe("Instagram archive sync", () => {
       .single();
     assert.equal(section?.name, "이루릴 아카이브");
   });
+
+  it("reads backfill and published sources and keeps a shortcode unique", async () => {
+    loadEnvLocal();
+    const backfill = "/tmp/iruli-backfill-fixture.jsonl";
+    const published = "/tmp/iruli-published-fixture.jsonl";
+    const shared = {
+      posted_at: "2026-11-08T16:30:00+09:00",
+      ig_url: `https://www.instagram.com/p/${PREFIX}shared/`,
+      ig_shortcode: `${PREFIX}shared`,
+      artist: "존재하지않는아티스트XYZ",
+      song: "없는곡ABC",
+      album: null,
+      caption: "overlap",
+      hashtags: [],
+      sources: [],
+      youtube_url: null,
+      musicbrainz_id: null,
+    };
+    writeFileSync(backfill, JSON.stringify({ ...shared, topic: "backfill topic" }) + "\n");
+    writeFileSync(
+      published,
+      JSON.stringify({ ...shared, posted_at: "2026-11-08T17:00:00+09:00", topic: "published topic" }) + "\n",
+    );
+    const result = spawnSync(
+      "npx",
+      ["tsx", "scripts/sync-instagram.ts", "--file", backfill, "--file", published],
+      { cwd: resolve(process.cwd()), encoding: "utf8", env: process.env },
+    );
+    unlinkSync(backfill);
+    unlinkSync(published);
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const anon = client();
+    const { data: rows } = await anon
+      .from("instagram_post")
+      .select("shortcode, topic")
+      .eq("shortcode", `${PREFIX}shared`);
+    assert.equal(rows?.length, 1);
+    assert.equal(rows![0].topic, "published topic");
+  });
 });

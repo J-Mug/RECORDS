@@ -1,8 +1,13 @@
 /**
- * Mirror Instagram @iruli.l posts from a read-only JSONL into RECORDS.
+ * Mirror Instagram @iruli.l posts from read-only JSONL files into RECORDS.
  *
- * Default source: /workspace/instagram/published.jsonl (do not write there).
- * Override with --file or INSTAGRAM_JSONL for fixtures.
+ * Default sources (read-only; do not write under /workspace/instagram):
+ *   /workspace/instagram/backfill.jsonl   — older posts (may not exist yet)
+ *   /workspace/instagram/published.jsonl  — ongoing posts (may not exist yet)
+ * Both are optional until they arrive. Upserts are idempotent by shortcode;
+ * if the same shortcode appears in both files, published.jsonl wins.
+ *
+ * Override with one or more --file flags, or INSTAGRAM_JSONL, for fixtures.
  *
  * Auth: signs in as ADMIN_EMAIL / ADMIN_PASSWORD and calls sync_instagram_post.
  * Never auto-publishes catalog rows. Slide paths in the JSONL are ignored.
@@ -14,7 +19,10 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createClient } from "@supabase/supabase-js";
 
-const DEFAULT_SOURCE = "/workspace/instagram/published.jsonl";
+const DEFAULT_SOURCES = [
+  "/workspace/instagram/backfill.jsonl",
+  "/workspace/instagram/published.jsonl",
+];
 
 function loadEnvLocal() {
   const p = resolve(process.cwd(), ".env.local");
@@ -31,14 +39,16 @@ function loadEnvLocal() {
 }
 
 function parseArgs(argv: string[]) {
-  let file = process.env.INSTAGRAM_JSONL || DEFAULT_SOURCE;
+  const files: string[] = [];
   for (let i = 0; i < argv.length; i += 1) {
     if (argv[i] === "--file" && argv[i + 1]) {
-      file = argv[i + 1];
+      files.push(argv[i + 1]);
       i += 1;
     }
   }
-  return { file };
+  if (files.length) return { files };
+  if (process.env.INSTAGRAM_JSONL) return { files: [process.env.INSTAGRAM_JSONL] };
+  return { files: DEFAULT_SOURCES };
 }
 
 function parseJsonl(path: string) {
@@ -56,15 +66,35 @@ function parseJsonl(path: string) {
   return rows;
 }
 
+function toPayload(raw: unknown) {
+  const post = raw as Record<string, unknown>;
+  // Drop slide fields so they never reach the database or site.
+  return {
+    posted_at: post.posted_at,
+    ig_url: post.ig_url,
+    ig_shortcode: post.ig_shortcode,
+    artist: post.artist ?? null,
+    song: post.song ?? null,
+    album: post.album ?? null,
+    topic: post.topic ?? null,
+    caption: post.caption ?? null,
+    hashtags: Array.isArray(post.hashtags) ? post.hashtags : [],
+    sources: Array.isArray(post.sources) ? post.sources : [],
+    youtube_url: post.youtube_url ?? null,
+    musicbrainz_id: post.musicbrainz_id ?? null,
+  };
+}
+
 async function main() {
   loadEnvLocal();
-  const { file } = parseArgs(process.argv.slice(2));
-  if (file.startsWith("/workspace/instagram") && !file.endsWith(".jsonl") && !file.endsWith("published.jsonl")) {
-    // still allow reading published.jsonl or any jsonl under that tree, but never write
+  const { files } = parseArgs(process.argv.slice(2));
+  const existing = files.filter((file) => existsSync(file));
+  const missing = files.filter((file) => !existsSync(file));
+  for (const file of missing) {
+    console.log(`Source not found yet (skipped): ${file}`);
   }
-  if (!existsSync(file)) {
-    console.log(`Source not found yet: ${file}`);
-    console.log("The Instagram archive file is read-only and may arrive later. Nothing was written.");
+  if (!existing.length) {
+    console.log("No Instagram JSONL sources are available yet. Nothing was written.");
     process.exit(0);
   }
 
@@ -80,31 +110,30 @@ async function main() {
   const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
   if (signInError) throw new Error(`Admin sign-in failed: ${signInError.message}`);
 
-  const rows = parseJsonl(file);
+  // Later files win on the same shortcode (published after backfill).
+  const byShortcode = new Map<string, ReturnType<typeof toPayload>>();
+  const fromFile = new Map<string, string>();
+  for (const file of existing) {
+    for (const raw of parseJsonl(file)) {
+      const payload = toPayload(raw);
+      const shortcode = typeof payload.ig_shortcode === "string" ? payload.ig_shortcode.trim() : "";
+      if (!shortcode) {
+        console.error(`Skipping a row in ${file} with no ig_shortcode`);
+        continue;
+      }
+      byShortcode.set(shortcode, payload);
+      fromFile.set(shortcode, file);
+    }
+  }
+
   let ok = 0;
   let failed = 0;
   const statuses: Record<string, number> = {};
-  for (const raw of rows) {
-    const post = raw as Record<string, unknown>;
-    // Drop slide fields so they never reach the database or site.
-    const payload = {
-      posted_at: post.posted_at,
-      ig_url: post.ig_url,
-      ig_shortcode: post.ig_shortcode,
-      artist: post.artist ?? null,
-      song: post.song ?? null,
-      album: post.album ?? null,
-      topic: post.topic ?? null,
-      caption: post.caption ?? null,
-      hashtags: Array.isArray(post.hashtags) ? post.hashtags : [],
-      sources: Array.isArray(post.sources) ? post.sources : [],
-      youtube_url: post.youtube_url ?? null,
-      musicbrainz_id: post.musicbrainz_id ?? null,
-    };
+  for (const [shortcode, payload] of byShortcode) {
     const { data, error } = await supabase.rpc("sync_instagram_post", { p_post: payload });
     if (error) {
       failed += 1;
-      console.error(`sync failed for ${payload.ig_shortcode ?? "?"}: ${error.message}`);
+      console.error(`sync failed for ${shortcode} (${fromFile.get(shortcode)}): ${error.message}`);
       continue;
     }
     ok += 1;
@@ -112,7 +141,7 @@ async function main() {
     statuses[status] = (statuses[status] ?? 0) + 1;
   }
 
-  console.log(`Synced ${ok} post(s) from ${file} (${failed} failed).`);
+  console.log(`Synced ${ok} unique post(s) from ${existing.join(", ")} (${failed} failed).`);
   for (const [status, count] of Object.entries(statuses)) {
     console.log(`  ${status}: ${count}`);
   }
