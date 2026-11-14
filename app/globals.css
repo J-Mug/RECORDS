@@ -464,3 +464,13 @@ body:has(.player-dock) { padding-bottom: 0; }
   .shop-item, .shop-item-actions { flex-direction: column; align-items: stretch; }
   .shop-item-actions { max-width: none; }
 }
+
+
+/* Instagram archive on the iruli shop */
+.shop-ig-links { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+.shop-ig-links a { font-size: 13px; letter-spacing: 0.04em; color: var(--clay); border-bottom: 1px solid var(--clay-soft); }
+.shop-archive { margin-top: 48px; }
+.shop-archive-list { list-style: none; }
+.shop-archive-item { padding: 16px 0; border-bottom: 1px solid var(--line); }
+.shop-archive-item time { display: block; font-size: 12px; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 4px; }
+.shop-archive-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; }

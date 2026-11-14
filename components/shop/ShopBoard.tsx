@@ -24,6 +24,29 @@ type Item = {
   sort_order: number;
   song: SongRef | SongRef[] | null;
 };
+type IgPost = {
+  shortcode: string;
+  ig_url: string;
+  posted_at: string;
+  artist: string | null;
+  song: string | null;
+  topic: string | null;
+  youtube_url: string | null;
+  song_id: string | null;
+  artist_id: string | null;
+  match_status: string;
+};
+
+function formatPostedAt(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+  }).format(date);
+}
 
 function one<T>(value: T | T[] | null | undefined): T | null {
   if (!value) return null;
@@ -45,6 +68,7 @@ export function ShopBoard({ handle }: { handle: string }) {
   const [introDraft, setIntroDraft] = useState("");
   const [editingComment, setEditingComment] = useState<Record<string, string>>({});
   const [dragging, setDragging] = useState<string | null>(null);
+  const [igPosts, setIgPosts] = useState<IgPost[]>([]);
 
   const isOwner = Boolean(user && owner && user.id === owner.id);
 
@@ -109,6 +133,15 @@ export function ShopBoard({ handle }: { handle: string }) {
     setIntroDraft(shopRow.introduction ?? "");
     setNotFound(false);
     setError(null);
+    if (handle === "iruli") {
+      const { data: posts } = await supabase
+        .from("instagram_post")
+        .select("shortcode, ig_url, posted_at, artist, song, topic, youtube_url, song_id, artist_id, match_status")
+        .order("posted_at", { ascending: false });
+      setIgPosts((posts ?? []) as IgPost[]);
+    } else {
+      setIgPosts([]);
+    }
     const songIds = nextItems.map((item) => item.song_id);
     if (songIds.length) {
       const { data: vids } = await supabase
@@ -196,6 +229,14 @@ export function ShopBoard({ handle }: { handle: string }) {
   }
 
   const sorted = items.slice().sort((a, b) => a.sort_order - b.sort_order);
+  const postsBySong = new Map<string, IgPost[]>();
+  for (const post of igPosts) {
+    if (!post.song_id) continue;
+    const list = postsBySong.get(post.song_id) ?? [];
+    list.push(post);
+    postsBySong.set(post.song_id, list);
+  }
+  const isIruli = handle === "iruli";
 
   return (
     <div className="shop-board">
@@ -254,7 +295,13 @@ export function ShopBoard({ handle }: { handle: string }) {
       {sorted.length === 0 ? (
         <EmptyState
           title="아직 진열된 곡이 없습니다."
-          body={isOwner ? "워키에서 ‘숍에 진열’을 눌러 곡을 올려 보세요." : "이 숍은 비어 있습니다."}
+          body={
+            isIruli
+              ? "인스타그램 아카이브 글은 아래에 모입니다. 카탈로그에 맞춰진 곡이 있으면 여기에 진열됩니다."
+              : isOwner
+                ? "워키에서 ‘숍에 진열’을 눌러 곡을 올려 보세요."
+                : "이 숍은 비어 있습니다."
+          }
         />
       ) : (
         <ul className="shop-list">
@@ -348,6 +395,18 @@ export function ShopBoard({ handle }: { handle: string }) {
                   ) : item.note ? (
                     <ShopCommentText comment={item.note} />
                   ) : null}
+                  {(postsBySong.get(item.song_id) ?? []).map((post) => (
+                    <p className="shop-ig-links" key={post.shortcode}>
+                      <a href={post.ig_url} target="_blank" rel="noreferrer">
+                        인스타에서 보기
+                      </a>
+                      {post.youtube_url ? (
+                        <a href={post.youtube_url} target="_blank" rel="noreferrer">
+                          공식 영상
+                        </a>
+                      ) : null}
+                    </p>
+                  ))}
                 </div>
                 <div className="shop-item-actions">
                   {song ? (
@@ -384,6 +443,47 @@ export function ShopBoard({ handle }: { handle: string }) {
           })}
         </ul>
       )}
+      {isIruli ? (
+        <section className="shop-archive">
+          <h2 className="catalog-section-title">인스타그램 아카이브</h2>
+          <p className="admin-sub">@iruli.l 에 올린 글입니다. 슬라이드 이미지는 싣지 않습니다.</p>
+          {igPosts.length === 0 ? (
+            <p className="admin-lead">아직 동기화된 게시가 없습니다.</p>
+          ) : (
+            <ul className="shop-archive-list">
+              {igPosts.map((post) => (
+                <li key={post.shortcode} className="shop-archive-item">
+                  <time dateTime={post.posted_at}>{formatPostedAt(post.posted_at)}</time>
+                  <strong>{post.topic || post.song || post.artist || post.shortcode}</strong>
+                  <p className="admin-sub">
+                    {post.artist ? (
+                      post.artist_id ? <a href={`/artist/${post.artist_id}`}>{post.artist}</a> : post.artist
+                    ) : "아티스트 미상"}
+                    {post.song ? (
+                      <>
+                        {" · "}
+                        {post.song_id ? <a href={`/song/${post.song_id}`}>{post.song}</a> : post.song}
+                      </>
+                    ) : (
+                      " · 곡 없음"
+                    )}
+                  </p>
+                  <div className="shop-archive-actions">
+                    <a href={post.ig_url} target="_blank" rel="noreferrer">
+                      인스타에서 보기
+                    </a>
+                    {post.youtube_url ? (
+                      <a href={post.youtube_url} target="_blank" rel="noreferrer">
+                        공식 영상
+                      </a>
+                    ) : null}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      ) : null}
     </div>
   );
 }

@@ -81,3 +81,15 @@ npm test
 ## Shop (Phase 5)
 
 Each account has a public shop at `/shop/[handle]`. Songs can be displayed only from Walkie. Public comments are optional and separate from private Walkie notes. Song pages list shops that display the track under “이 곡을 진열한 숍”.
+
+## Instagram archive (Plan A)
+
+The public shop is `/shop/iruli` (short link `/iruli`). Posts are synced from the read-only file `/workspace/instagram/published.jsonl` — never write to that directory.
+
+```bash
+npm run sync:instagram
+# or a fixture:
+npm run sync:instagram -- --file /tmp/iruli-fixture.jsonl
+```
+
+The script signs in with `ADMIN_EMAIL` / `ADMIN_PASSWORD` from `.env.local`. Matched songs are added to the iruli Walkie section “이루릴 아카이브” and displayed on the shop. Unmatched posts stay unmatched and become `music_candidate` rows for human review. Slide images are not stored or published.
