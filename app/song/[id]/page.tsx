@@ -4,6 +4,7 @@ import { ErrorState } from "@/components/catalog/States";
 import { PlaceholderCover } from "@/components/catalog/PlaceholderCover";
 import { PlayButton } from "@/components/catalog/PlayButton";
 import { SaveToWalkie } from "@/components/walkie/SaveToWalkie";
+import { DisplayedShops } from "@/components/shop/DisplayedShops";
 import {
   createPublicSupabaseClient,
   getSupabasePublicConfig,
@@ -149,6 +150,7 @@ export default async function SongPage({ params }: { params: Promise<{ id: strin
             </ul>
           </section>
         ) : null}
+        <DisplayedShops songId={song.id} />
       </main>
     </div>
   );

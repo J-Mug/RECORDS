@@ -39,6 +39,7 @@ export function CatalogNav({ initialQuery = "" }: { initialQuery?: string }) {
         </form>
         <nav className="catalog-account" aria-label="계정">
           <a href="/walkie">워키</a>
+          {profile?.handle ? <a href={`/shop/${profile.handle}`}>숍</a> : null}
           {ready && user ? (
             <>
               <span className="admin-sub">{profile?.handle ?? "계정"}</span>

@@ -77,3 +77,7 @@ Sign up or log in at `/signup` and `/login`. Walkie lives at `/walkie` and is pr
 ```bash
 npm test
 ```
+
+## Shop (Phase 5)
+
+Each account has a public shop at `/shop/[handle]`. Songs can be displayed only from Walkie. Public comments are optional and separate from private Walkie notes. Song pages list shops that display the track under “이 곡을 진열한 숍”.

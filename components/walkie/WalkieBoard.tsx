@@ -44,6 +44,7 @@ export function WalkieBoard() {
   const [editingNote, setEditingNote] = useState<Record<string, string>>({});
   const [renaming, setRenaming] = useState<Record<string, string>>({});
   const [dragging, setDragging] = useState<string | null>(null);
+  const [displayedSongs, setDisplayedSongs] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     if (!config.ready || !user) return;
@@ -79,6 +80,14 @@ export function WalkieBoard() {
       setVideos(new Map((vids ?? []).map((row) => [row.song_id as string, row.video_id as string])));
     } else {
       setVideos(new Map());
+    }
+
+    const { data: shopRow } = await supabase.from("shop").select("id").eq("user_id", user.id).maybeSingle();
+    if (shopRow) {
+      const { data: displayed } = await supabase.from("shop_item").select("song_id").eq("shop_id", shopRow.id);
+      setDisplayedSongs(new Set((displayed ?? []).map((row) => row.song_id as string)));
+    } else {
+      setDisplayedSongs(new Set());
     }
     setLoading(false);
   }, [config.ready, user]);
@@ -188,6 +197,23 @@ export function WalkieBoard() {
     void reorder(item.section_id, ids);
   }
 
+
+  async function displayOnShop(songId: string) {
+    const supabase = getSupabaseBrowserClient();
+    const { error: rpcError } = await supabase.rpc("display_on_shop", { p_song_id: songId, p_comment: null });
+    if (rpcError) setError(rpcError.message);
+    await load();
+  }
+
+  async function removeFromShop(songId: string) {
+    const supabase = getSupabaseBrowserClient();
+    const { data: shopRow } = await supabase.from("shop").select("id").eq("user_id", user!.id).maybeSingle();
+    if (!shopRow) return;
+    const { error: deleteError } = await supabase.from("shop_item").delete().eq("shop_id", shopRow.id).eq("song_id", songId);
+    if (deleteError) setError(deleteError.message);
+    await load();
+  }
+
   if (!authReady || (user && loading && items.length === 0 && sections.length === 0)) {
     return <LoadingState label="워키를 불러오는 중…" />;
   }
@@ -213,7 +239,13 @@ export function WalkieBoard() {
   return (
     <div className="walkie-board">
       <p className="admin-lead">
-        {profile?.display_name ?? "나"}의 비공개 창고입니다. 메모는 기본적으로 비공개이며, 다른 사람에게 보이지 않습니다.
+        {profile?.display_name ?? "나"}의 비공개 창고입니다. 메모는 기본적으로 비공개이며 숍에 노출되지 않습니다.
+        {profile?.handle ? (
+          <>
+            {" "}
+            <a href={`/shop/${profile.handle}`}>내 숍</a>에 진열할 곡을 고를 수 있습니다.
+          </>
+        ) : null}
       </p>
       <form className="walkie-new-section" onSubmit={createSection}>
         <label className="sr-only" htmlFor="new-section">
@@ -387,6 +419,15 @@ export function WalkieBoard() {
                             ))}
                           </select>
                         </label>
+                        {displayedSongs.has(item.song_id) ? (
+                          <button className="btn btn-ghost" type="button" onClick={() => void removeFromShop(item.song_id)}>
+                            진열 내리기
+                          </button>
+                        ) : (
+                          <button className="btn btn-fill" type="button" onClick={() => void displayOnShop(item.song_id)}>
+                            숍에 진열
+                          </button>
+                        )}
                         <button className="btn btn-ghost" type="button" onClick={() => void removeItem(item.id)}>
                           빼기
                         </button>

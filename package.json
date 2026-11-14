@@ -13,7 +13,7 @@
     "ingest:musicbrainz": "tsx scripts/ingest-musicbrainz.ts",
     "ingest:mb-youtube": "tsx scripts/ingest-mb-youtube.ts",
     "approve:unique": "tsx scripts/bulk-approve-candidates.ts",
-    "test": "tsx --test tests/**/*.test.ts"
+    "test": "tsx --test --test-concurrency=1 tests/**/*.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.119.0",
