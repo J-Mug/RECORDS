@@ -3,7 +3,9 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { EmptyState, ErrorState, LoadingState } from "@/components/catalog/States";
-import { PlaceholderCover } from "@/components/catalog/PlaceholderCover";
+import { AlbumCover } from "@/components/catalog/AlbumCover";
+import type { AlbumCoverRef } from "@/lib/music/covers";
+import { fetchAlbumCovers } from "@/lib/music/covers";
 import { PlayButton } from "@/components/catalog/PlayButton";
 import { WalkieNoteText } from "@/components/walkie/WalkieNoteText";
 import { getSupabaseBrowserClient, getSupabasePublicConfig } from "@/lib/supabase/client";
@@ -45,6 +47,7 @@ export function WalkieBoard() {
   const [renaming, setRenaming] = useState<Record<string, string>>({});
   const [dragging, setDragging] = useState<string | null>(null);
   const [displayedSongs, setDisplayedSongs] = useState<Set<string>>(new Set());
+  const [covers, setCovers] = useState<Map<string, AlbumCoverRef>>(new Map());
 
   const load = useCallback(async () => {
     if (!config.ready || !user) return;
@@ -78,8 +81,11 @@ export function WalkieBoard() {
         .eq("status", "ACTIVE")
         .in("song_id", songIds);
       setVideos(new Map((vids ?? []).map((row) => [row.song_id as string, row.video_id as string])));
+      const albumIds = nextItems.map((item) => one(one(item.song)?.album)?.id);
+      setCovers(await fetchAlbumCovers(supabase, albumIds));
     } else {
       setVideos(new Map());
+      setCovers(new Map());
     }
 
     const { data: shopRow } = await supabase.from("shop").select("id").eq("user_id", user.id).maybeSingle();
@@ -238,6 +244,7 @@ export function WalkieBoard() {
 
   return (
     <div className="walkie-board">
+      {covers.size ? <p className="cover-section-note">Cover: Cover Art Archive</p> : null}
       <p className="admin-lead">
         {profile?.display_name ?? "나"}의 비공개 창고입니다. 메모는 기본적으로 비공개이며 숍에 노출되지 않습니다.
         {profile?.handle ? (
@@ -338,7 +345,7 @@ export function WalkieBoard() {
                       }}
                       onDragEnd={() => setDragging(null)}
                     >
-                      <PlaceholderCover seed={item.song_id} size="sm" />
+                      <AlbumCover seed={item.song_id} size="sm" src={covers.get(album?.id ?? "")?.src} alt="" />
                       <div className="walkie-item-main">
                         {song ? (
                           <a href={`/song/${song.id}`}>
@@ -388,6 +395,7 @@ export function WalkieBoard() {
                               title: song.title,
                               artistName: artist?.name ?? "",
                               videoId: videos.get(song.id) ?? null,
+                              coverUrl: covers.get(album?.id ?? "")?.src ?? null,
                             }}
                           />
                         ) : null}

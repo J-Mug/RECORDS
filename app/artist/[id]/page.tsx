@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 import { CatalogNav } from "@/components/catalog/CatalogNav";
 import { EmptyState, ErrorState } from "@/components/catalog/States";
+import { AlbumCover } from "@/components/catalog/AlbumCover";
 import { PlaceholderCover } from "@/components/catalog/PlaceholderCover";
+import { fetchAlbumCovers } from "@/lib/music/covers";
 import {
   createPublicSupabaseClient,
   getSupabasePublicConfig,
@@ -77,6 +79,8 @@ export default async function ArtistPage({ params }: { params: Promise<{ id: str
       .limit(40),
   ]);
 
+  const covers = await fetchAlbumCovers(supabase, (albums ?? []).map((album) => (album as Album).id));
+
   return (
     <div className="catalog-shell">
       <CatalogNav />
@@ -95,17 +99,20 @@ export default async function ArtistPage({ params }: { params: Promise<{ id: str
         <section>
           <h2 className="catalog-section-title">앨범</h2>
           {albums?.length ? (
+            <>
+            {covers.size ? <p className="cover-section-note">Cover: Cover Art Archive</p> : null}
             <ul className="card-grid">
               {(albums as Album[]).map((album) => (
                 <li key={album.id}>
                   <a className="catalog-card" href={`/album/${album.id}`}>
-                    <PlaceholderCover seed={album.id} />
+                    <AlbumCover seed={album.id} src={covers.get(album.id)?.src} alt={`${album.title} cover`} />
                     <strong>{album.title}</strong>
                     <span className="admin-sub">{formatDate(album.first_released_on)}</span>
                   </a>
                 </li>
               ))}
             </ul>
+            </>
           ) : (
             <EmptyState title="연결된 앨범이 아직 없습니다." />
           )}

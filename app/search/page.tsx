@@ -1,7 +1,9 @@
 import { Suspense } from "react";
 import { CatalogNav } from "@/components/catalog/CatalogNav";
 import { EmptyState, ErrorState, LoadingState } from "@/components/catalog/States";
+import { AlbumCover } from "@/components/catalog/AlbumCover";
 import { PlaceholderCover } from "@/components/catalog/PlaceholderCover";
+import { fetchAlbumCovers } from "@/lib/music/covers";
 import { SaveToWalkie } from "@/components/walkie/SaveToWalkie";
 import {
   createPublicSupabaseClient,
@@ -53,6 +55,15 @@ async function SearchResults({ q }: { q: string }) {
     }
     const groups: Record<string, Hit[]> = { ARTIST: [], ALBUM: [], SONG: [] };
     for (const hit of hits) groups[hit.entity_kind]?.push(hit);
+    const songIds = groups.SONG.map((hit) => hit.entity_id);
+    const songAlbums = songIds.length
+      ? (await supabase.from("song").select("id, primary_album_id").in("id", songIds)).data ?? []
+      : [];
+    const albumIdBySong = new Map(songAlbums.map((row) => [row.id as string, row.primary_album_id as string | null]));
+    const covers = await fetchAlbumCovers(supabase, [
+      ...groups.ALBUM.map((hit) => hit.entity_id),
+      ...[...albumIdBySong.values()],
+    ]);
     const labels = { ARTIST: "아티스트", ALBUM: "앨범", SONG: "곡" } as const;
     return (
       <div className="search-groups">
@@ -64,7 +75,16 @@ async function SearchResults({ q }: { q: string }) {
                 {groups[kind].map((hit) => (
                   <li key={`${hit.entity_kind}-${hit.entity_id}`} className="search-hit">
                     <a className="search-row" href={hrefFor(hit)}>
-                      <PlaceholderCover seed={hit.entity_id} size="sm" />
+                      {hit.entity_kind === "ARTIST" ? (
+                        <PlaceholderCover seed={hit.entity_id} size="sm" />
+                      ) : (
+                        <AlbumCover
+                          seed={hit.entity_id}
+                          size="sm"
+                          src={covers.get(hit.entity_kind === "ALBUM" ? hit.entity_id : albumIdBySong.get(hit.entity_id) ?? "")?.src}
+                          alt=""
+                        />
+                      )}
                       <span>
                         <strong>{hit.title}</strong>
                         {hit.subtitle ? <span className="admin-sub">{hit.subtitle}</span> : null}

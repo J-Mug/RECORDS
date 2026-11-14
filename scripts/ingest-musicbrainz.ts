@@ -114,8 +114,8 @@ type MediaRow = {
   source_url: string;
   original_url: string;
   rights_type: "UNAVAILABLE";
-  license_type: "reference-only";
-  license_source: "Cover Art Archive URL reference; pending rights review. File not cached.";
+  license_type: string;
+  license_source: string;
   attribution_required: boolean;
   attribution_text: string;
   cached: boolean;
@@ -393,21 +393,21 @@ async function ingestArtist(entry: { query: string; label: string }) {
       });
       addSource(albumRow, rg.id, albumRow.source_url);
 
-      // Reference-only CAA URL — do not download or cache the file.
-      const caaUrl = `https://coverartarchive.org/release-group/${rg.id}/front`;
+      // Hotlink reference only — store CAA thumbnail URLs, never download or cache the file (D-006).
+      const caaUrl = `https://coverartarchive.org/release-group/${rg.id}/front-250`;
+      const caaUrlLg = `https://coverartarchive.org/release-group/${rg.id}/front-500`;
       media.push({
         entity_type: "CANDIDATE",
         entity_id: albumRow.id,
         asset_type: "ALBUM_COVER",
         source_type: "COVER_ART_ARCHIVE",
         source_url: caaUrl,
-        original_url: caaUrl,
+        original_url: caaUrlLg,
         rights_type: "UNAVAILABLE",
-        license_type: "reference-only",
-        license_source:
-          "Cover Art Archive URL reference; pending rights review. File not cached.",
+        license_type: "hotlink-reference",
+        license_source: CAA_TERMS,
         attribution_required: true,
-        attribution_text: `Cover art may be available at Cover Art Archive (${CAA_TERMS}). Rights unconfirmed; not self-hosted.`,
+        attribution_text: "Cover: Cover Art Archive",
         cached: false,
         status: "NEEDS_REVIEW",
       });

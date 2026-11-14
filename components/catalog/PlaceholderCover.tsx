@@ -12,7 +12,7 @@ type Props = {
   size?: "sm" | "md" | "lg";
 };
 
-/** Typographic placeholder only. Third-party artwork is not self-hosted or hot-linked (05_ARTWORK_AND_RIGHTS). */
+/** Typographic fallback when a Cover Art Archive thumbnail is missing or fails to load. */
 export function PlaceholderCover({ seed, className, size = "md" }: Props) {
   const style = hashStyle(seed);
   return (

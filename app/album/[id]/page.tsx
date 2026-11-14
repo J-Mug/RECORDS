@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import { CatalogNav } from "@/components/catalog/CatalogNav";
 import { EmptyState, ErrorState } from "@/components/catalog/States";
-import { PlaceholderCover } from "@/components/catalog/PlaceholderCover";
+import { AlbumCover } from "@/components/catalog/AlbumCover";
+import { fetchAlbumCovers } from "@/lib/music/covers";
 import { PlayButton } from "@/components/catalog/PlayButton";
 import { SaveToWalkie } from "@/components/walkie/SaveToWalkie";
 import {
@@ -92,13 +93,15 @@ export default async function AlbumPage({ params }: { params: Promise<{ id: stri
         .in("song_id", songIds)
     : { data: [] };
   const videoBySong = new Map((videos ?? []).map((v) => [v.song_id, v.video_id]));
+  const covers = await fetchAlbumCovers(supabase, [album.id]);
+  const cover = covers.get(album.id);
 
   return (
     <div className="catalog-shell">
       <CatalogNav />
       <main className="catalog-main">
         <div className="entity-hero">
-          <PlaceholderCover seed={album.id} size="lg" />
+          <AlbumCover seed={album.id} size="lg" src={cover?.src} srcLg={cover?.srcLg} alt={`${album.title} cover`} showAttribution />
           <div>
             <p className="kicker">Album</p>
             <h1 className="admin-title">{album.title}</h1>
@@ -135,6 +138,7 @@ export default async function AlbumPage({ params }: { params: Promise<{ id: stri
                         title: song.title,
                         artistName: artistRow?.name ?? "",
                         videoId: videoBySong.get(song.id) ?? null,
+                        coverUrl: cover?.src ?? null,
                       }}
                     />
                     <SaveToWalkie songId={song.id} compact />

@@ -1,5 +1,6 @@
 "use client";
 
+import { AlbumCover } from "@/components/catalog/AlbumCover";
 import { SaveToWalkie } from "@/components/walkie/SaveToWalkie";
 import {
   createContext,
@@ -17,6 +18,7 @@ export type NowPlaying = {
   title: string;
   artistName: string;
   videoId: string | null;
+  coverUrl?: string | null;
 };
 
 type PlayerContextValue = {
@@ -141,6 +143,7 @@ export function DockPlayer() {
   return (
     <div className="player-dock" role="region" aria-label="재생 중인 곡">
       <div className="player-dock-inner">
+        <AlbumCover seed={nowPlaying.songId} size="sm" src={nowPlaying.coverUrl} alt="" className="player-cover" />
         {nowPlaying.videoId ? (
           <div className="player-frame-wrap">
             <div ref={hostRef} className="player-frame" />

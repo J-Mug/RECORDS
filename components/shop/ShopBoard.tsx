@@ -3,7 +3,9 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { EmptyState, ErrorState, LoadingState } from "@/components/catalog/States";
-import { PlaceholderCover } from "@/components/catalog/PlaceholderCover";
+import { AlbumCover } from "@/components/catalog/AlbumCover";
+import type { AlbumCoverRef } from "@/lib/music/covers";
+import { fetchAlbumCovers } from "@/lib/music/covers";
 import { PlayButton } from "@/components/catalog/PlayButton";
 import { ShopCommentText } from "@/components/shop/ShopCommentText";
 import { getSupabaseBrowserClient, getSupabasePublicConfig } from "@/lib/supabase/client";
@@ -69,6 +71,7 @@ export function ShopBoard({ handle }: { handle: string }) {
   const [editingComment, setEditingComment] = useState<Record<string, string>>({});
   const [dragging, setDragging] = useState<string | null>(null);
   const [igPosts, setIgPosts] = useState<IgPost[]>([]);
+  const [covers, setCovers] = useState<Map<string, AlbumCoverRef>>(new Map());
 
   const isOwner = Boolean(user && owner && user.id === owner.id);
 
@@ -151,8 +154,11 @@ export function ShopBoard({ handle }: { handle: string }) {
         .eq("status", "ACTIVE")
         .in("song_id", songIds);
       setVideos(new Map((vids ?? []).map((row) => [row.song_id as string, row.video_id as string])));
+      const albumIds = nextItems.map((item) => one(one(item.song)?.album)?.id);
+      setCovers(await fetchAlbumCovers(supabase, albumIds));
     } else {
       setVideos(new Map());
+      setCovers(new Map());
     }
     setLoading(false);
   }, [config.ready, handle]);
@@ -304,6 +310,8 @@ export function ShopBoard({ handle }: { handle: string }) {
           }
         />
       ) : (
+        <>
+        {covers.size ? <p className="cover-section-note">Cover: Cover Art Archive</p> : null}
         <ul className="shop-list">
           {sorted.map((item, index) => {
             const song = one(item.song);
@@ -346,7 +354,7 @@ export function ShopBoard({ handle }: { handle: string }) {
                     : undefined
                 }
               >
-                <PlaceholderCover seed={item.song_id} size="sm" />
+                <AlbumCover seed={item.song_id} size="sm" src={covers.get(album?.id ?? "")?.src} alt="" />
                 <div className="shop-item-main">
                   {song ? (
                     <a href={`/song/${song.id}`}>
@@ -416,6 +424,7 @@ export function ShopBoard({ handle }: { handle: string }) {
                         title: song.title,
                         artistName: artist?.name ?? "",
                         videoId: videos.get(song.id) ?? null,
+                        coverUrl: covers.get(album?.id ?? "")?.src ?? null,
                       }}
                     />
                   ) : null}
@@ -442,6 +451,7 @@ export function ShopBoard({ handle }: { handle: string }) {
             );
           })}
         </ul>
+        </>
       )}
       {isIruli ? (
         <section className="shop-archive">

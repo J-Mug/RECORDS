@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import { CatalogNav } from "@/components/catalog/CatalogNav";
 import { ErrorState } from "@/components/catalog/States";
-import { PlaceholderCover } from "@/components/catalog/PlaceholderCover";
+import { AlbumCover } from "@/components/catalog/AlbumCover";
+import { fetchAlbumCovers } from "@/lib/music/covers";
 import { PlayButton } from "@/components/catalog/PlayButton";
 import { SaveToWalkie } from "@/components/walkie/SaveToWalkie";
 import { DisplayedShops } from "@/components/shop/DisplayedShops";
@@ -69,6 +70,8 @@ export default async function SongPage({ params }: { params: Promise<{ id: strin
     .eq("status", "ACTIVE")
     .order("is_official", { ascending: false });
   const video = videos?.[0] ?? null;
+  const covers = await fetchAlbumCovers(supabase, [album?.id ?? song.primary_album_id]);
+  const cover = covers.get(album?.id ?? song.primary_album_id ?? "");
 
   const { data: appearances } = await supabase
     .from("release_track")
@@ -80,7 +83,7 @@ export default async function SongPage({ params }: { params: Promise<{ id: strin
       <CatalogNav />
       <main className="catalog-main">
         <div className="entity-hero">
-          <PlaceholderCover seed={album?.id ?? song.id} size="lg" />
+          <AlbumCover seed={album?.id ?? song.id} size="lg" src={cover?.src} srcLg={cover?.srcLg} alt={album ? `${album.title} cover` : ""} showAttribution />
           <div>
             <p className="kicker">Song</p>
             <h1 className="admin-title">{song.title}</h1>
@@ -101,6 +104,7 @@ export default async function SongPage({ params }: { params: Promise<{ id: strin
                   title: song.title,
                   artistName: artist?.name ?? "",
                   videoId: video?.video_id ?? null,
+                  coverUrl: cover?.src ?? null,
                 }}
               />
               <SaveToWalkie songId={song.id} />
