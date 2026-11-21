@@ -1,43 +1,13 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { EmptyState, ErrorState, LoadingState } from "@/components/catalog/States";
+import { EmptyState, ErrorState } from "@/components/catalog/States";
 import { AlbumCover } from "@/components/catalog/AlbumCover";
-import type { AlbumCoverRef } from "@/lib/music/covers";
-import { fetchAlbumCovers } from "@/lib/music/covers";
 import { PlayButton } from "@/components/catalog/PlayButton";
 import { ShopCommentText } from "@/components/shop/ShopCommentText";
+import { loadShopPage, type ShopIgPost, type ShopItemRow, type ShopPageData } from "@/lib/shop/load";
 import { getSupabaseBrowserClient, getSupabasePublicConfig } from "@/lib/supabase/client";
-
-type Owner = { id: string; handle: string; display_name: string };
-type Shop = { id: string; user_id: string; name: string; introduction: string | null; visibility: string };
-type SongRef = {
-  id: string;
-  title: string;
-  duration_ms: number | null;
-  artist?: { id: string; name: string } | { id: string; name: string }[] | null;
-  album?: { id: string; title: string } | { id: string; title: string }[] | null;
-};
-type Item = {
-  id: string;
-  song_id: string;
-  note: string | null;
-  sort_order: number;
-  song: SongRef | SongRef[] | null;
-};
-type IgPost = {
-  shortcode: string;
-  ig_url: string;
-  posted_at: string;
-  artist: string | null;
-  song: string | null;
-  topic: string | null;
-  youtube_url: string | null;
-  song_id: string | null;
-  artist_id: string | null;
-  match_status: string;
-};
 
 function formatPostedAt(value: string) {
   const date = new Date(value);
@@ -50,123 +20,39 @@ function formatPostedAt(value: string) {
   }).format(date);
 }
 
-function one<T>(value: T | T[] | null | undefined): T | null {
-  if (!value) return null;
-  return Array.isArray(value) ? value[0] ?? null : value;
-}
-
-export function ShopBoard({ handle }: { handle: string }) {
-  const { ready: authReady, user, profile } = useAuth();
-  const config = useMemo(() => getSupabasePublicConfig(), []);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [notFound, setNotFound] = useState(false);
-  const [shop, setShop] = useState<Shop | null>(null);
-  const [owner, setOwner] = useState<Owner | null>(null);
-  const [items, setItems] = useState<Item[]>([]);
-  const [videos, setVideos] = useState<Map<string, string>>(new Map());
+export function ShopBoard({ handle, initial }: { handle: string; initial: ShopPageData }) {
+  const { user, profile } = useAuth();
+  const config = getSupabasePublicConfig();
+  const [error, setError] = useState<string | null>(initial.error);
+  const [notFound, setNotFound] = useState(initial.notFound);
+  const [shop, setShop] = useState(initial.shop);
+  const [owner, setOwner] = useState(initial.owner);
+  const [items, setItems] = useState<ShopItemRow[]>(initial.items);
+  const [videos, setVideos] = useState<Record<string, string>>(initial.videos);
   const [editingProfile, setEditingProfile] = useState(false);
-  const [nameDraft, setNameDraft] = useState("");
-  const [introDraft, setIntroDraft] = useState("");
+  const [nameDraft, setNameDraft] = useState(initial.shop?.name ?? "");
+  const [introDraft, setIntroDraft] = useState(initial.shop?.introduction ?? "");
   const [editingComment, setEditingComment] = useState<Record<string, string>>({});
   const [dragging, setDragging] = useState<string | null>(null);
-  const [igPosts, setIgPosts] = useState<IgPost[]>([]);
-  const [covers, setCovers] = useState<Map<string, AlbumCoverRef>>(new Map());
+  const [igPosts, setIgPosts] = useState<ShopIgPost[]>(initial.igPosts);
+  const [covers, setCovers] = useState(initial.covers);
 
   const isOwner = Boolean(user && owner && user.id === owner.id);
 
   const load = useCallback(async () => {
     if (!config.ready) return;
-    setLoading(true);
-    const supabase = getSupabaseBrowserClient();
-    const { data: profileRow, error: profileError } = await supabase
-      .from("profiles")
-      .select("id, handle, display_name")
-      .eq("handle", handle)
-      .maybeSingle();
-    if (profileError) {
-      setError(profileError.message);
-      setLoading(false);
-      return;
-    }
-    if (!profileRow) {
-      setNotFound(true);
-      setShop(null);
-      setOwner(null);
-      setItems([]);
-      setLoading(false);
-      return;
-    }
-    const { data: shopRow, error: shopError } = await supabase
-      .from("shop")
-      .select("id, user_id, name, introduction, visibility")
-      .eq("user_id", profileRow.id)
-      .maybeSingle();
-    if (shopError) {
-      setError(shopError.message);
-      setLoading(false);
-      return;
-    }
-    if (!shopRow) {
-      setNotFound(true);
-      setOwner(profileRow as Owner);
-      setShop(null);
-      setItems([]);
-      setLoading(false);
-      return;
-    }
-    const { data: itemRows, error: itemError } = await supabase
-      .from("shop_item")
-      .select(
-        "id, song_id, note, sort_order, song:song_id (id, title, duration_ms, artist:primary_artist_id (id, name), album:primary_album_id (id, title))",
-      )
-      .eq("shop_id", shopRow.id)
-      .order("sort_order")
-      .order("created_at");
-    if (itemError) {
-      setError(itemError.message);
-      setLoading(false);
-      return;
-    }
-    const nextItems = (itemRows ?? []) as Item[];
-    setOwner(profileRow as Owner);
-    setShop(shopRow as Shop);
-    setItems(nextItems);
-    setNameDraft(shopRow.name);
-    setIntroDraft(shopRow.introduction ?? "");
-    setNotFound(false);
-    setError(null);
-    if (handle === "iruli") {
-      const { data: posts } = await supabase
-        .from("instagram_post")
-        .select("shortcode, ig_url, posted_at, artist, song, topic, youtube_url, song_id, artist_id, match_status")
-        .order("posted_at", { ascending: false });
-      setIgPosts((posts ?? []) as IgPost[]);
-    } else {
-      setIgPosts([]);
-    }
-    const songIds = nextItems.map((item) => item.song_id);
-    if (songIds.length) {
-      const { data: vids } = await supabase
-        .from("song_external_video")
-        .select("song_id, video_id")
-        .eq("provider", "youtube")
-        .eq("status", "ACTIVE")
-        .in("song_id", songIds);
-      setVideos(new Map((vids ?? []).map((row) => [row.song_id as string, row.video_id as string])));
-      const albumIds = nextItems.map((item) => one(one(item.song)?.album)?.id);
-      setCovers(await fetchAlbumCovers(supabase, albumIds));
-    } else {
-      setVideos(new Map());
-      setCovers(new Map());
-    }
-    setLoading(false);
+    const data = await loadShopPage(getSupabaseBrowserClient(), handle);
+    setOwner(data.owner);
+    setShop(data.shop);
+    setItems(data.items);
+    setNameDraft(data.shop?.name ?? "");
+    setIntroDraft(data.shop?.introduction ?? "");
+    setNotFound(data.notFound);
+    setError(data.error);
+    setIgPosts(data.igPosts);
+    setVideos(data.videos);
+    setCovers(data.covers);
   }, [config.ready, handle]);
-
-  useEffect(() => {
-    if (!authReady) return;
-    void load();
-  }, [authReady, load]);
 
   async function saveProfile(event: FormEvent) {
     event.preventDefault();
@@ -213,17 +99,13 @@ export function ShopBoard({ handle }: { handle: string }) {
     await load();
   }
 
-  function shift(item: Item, direction: -1 | 1) {
+  function shift(item: ShopItemRow, direction: -1 | 1) {
     const index = items.findIndex((row) => row.id === item.id);
     const next = index + direction;
     if (next < 0 || next >= items.length) return;
     const ids = items.map((row) => row.id);
     [ids[index], ids[next]] = [ids[next], ids[index]];
     void reorder(ids);
-  }
-
-  if (!authReady || loading) {
-    return <LoadingState label="숍을 불러오는 중…" />;
   }
 
   if (!config.ready) {
@@ -235,7 +117,7 @@ export function ShopBoard({ handle }: { handle: string }) {
   }
 
   const sorted = items.slice().sort((a, b) => a.sort_order - b.sort_order);
-  const postsBySong = new Map<string, IgPost[]>();
+  const postsBySong = new Map<string, ShopIgPost[]>();
   for (const post of igPosts) {
     if (!post.song_id) continue;
     const list = postsBySong.get(post.song_id) ?? [];
@@ -311,12 +193,12 @@ export function ShopBoard({ handle }: { handle: string }) {
         />
       ) : (
         <>
-        {covers.size ? <p className="cover-section-note">Cover: Cover Art Archive</p> : null}
+        {Object.keys(covers).length ? <p className="cover-section-note">Cover: Cover Art Archive</p> : null}
         <ul className="shop-list">
           {sorted.map((item, index) => {
-            const song = one(item.song);
-            const artist = one(song?.artist);
-            const album = one(song?.album);
+            const song = item.song;
+            const artist = song?.artist ?? null;
+            const album = song?.album ?? null;
             const commentDraft = editingComment[item.id];
             return (
               <li
@@ -354,7 +236,7 @@ export function ShopBoard({ handle }: { handle: string }) {
                     : undefined
                 }
               >
-                <AlbumCover seed={item.song_id} size="sm" src={covers.get(album?.id ?? "")?.src} alt="" />
+                <AlbumCover seed={item.song_id} size="sm" src={covers[album?.id ?? ""]?.src} alt="" />
                 <div className="shop-item-main">
                   {song ? (
                     <a href={`/song/${song.id}`}>
@@ -423,8 +305,8 @@ export function ShopBoard({ handle }: { handle: string }) {
                         songId: song.id,
                         title: song.title,
                         artistName: artist?.name ?? "",
-                        videoId: videos.get(song.id) ?? null,
-                        coverUrl: covers.get(album?.id ?? "")?.src ?? null,
+                        videoId: videos[song.id] ?? null,
+                        coverUrl: covers[album?.id ?? ""]?.src ?? null,
                       }}
                     />
                   ) : null}
@@ -457,12 +339,22 @@ export function ShopBoard({ handle }: { handle: string }) {
         <section className="shop-archive">
           <h2 className="catalog-section-title">인스타그램 아카이브</h2>
           <p className="admin-sub">@iruli.l 에 올린 글입니다. 슬라이드 이미지는 싣지 않습니다.</p>
+          {igPosts.some((post) => post.album_id && covers[post.album_id]) ? (
+            <p className="cover-section-note">Cover: Cover Art Archive</p>
+          ) : null}
           {igPosts.length === 0 ? (
             <p className="admin-lead">아직 동기화된 게시가 없습니다.</p>
           ) : (
             <ul className="shop-archive-list">
               {igPosts.map((post) => (
                 <li key={post.shortcode} className="shop-archive-item">
+                  <AlbumCover
+                    seed={post.album_id || post.shortcode}
+                    size="sm"
+                    src={post.album_id ? covers[post.album_id]?.src : null}
+                    alt=""
+                  />
+                  <div className="shop-archive-body">
                   <time dateTime={post.posted_at}>{formatPostedAt(post.posted_at)}</time>
                   <strong>{post.topic || post.song || post.artist || post.shortcode}</strong>
                   <p className="admin-sub">
@@ -474,9 +366,20 @@ export function ShopBoard({ handle }: { handle: string }) {
                         {" · "}
                         {post.song_id ? <a href={`/song/${post.song_id}`}>{post.song}</a> : post.song}
                       </>
+                    ) : post.album ? (
+                      <>
+                        {" · "}
+                        {post.album_id ? <a href={`/album/${post.album_id}`}>{post.album}</a> : post.album}
+                      </>
                     ) : (
                       " · 곡 없음"
                     )}
+                    {post.song && post.album ? (
+                      <>
+                        {" · "}
+                        {post.album_id ? <a href={`/album/${post.album_id}`}>{post.album}</a> : post.album}
+                      </>
+                    ) : null}
                   </p>
                   <div className="shop-archive-actions">
                     <a href={post.ig_url} target="_blank" rel="noreferrer">
@@ -487,6 +390,7 @@ export function ShopBoard({ handle }: { handle: string }) {
                         공식 영상
                       </a>
                     ) : null}
+                  </div>
                   </div>
                 </li>
               ))}

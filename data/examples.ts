@@ -1,5 +1,5 @@
 export const EXAMPLE_NOTICE =
-  "이 시안의 앨범·Shop·지역 정보는 모두 가상의 예시 데이터입니다. 실제 앨범 아트워크는 사용하지 않았습니다.";
+  "오늘의 발견, 장르, 도시 음악 칸은 가상의 예시입니다. Shop 칸은 실제 공개 숍이며, 표지는 Cover Art Archive에서 가져옵니다.";
 
 export type CoverId =
   | "train"

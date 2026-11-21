@@ -128,6 +128,8 @@ async function main() {
 
   let ok = 0;
   let failed = 0;
+  let songLinks = 0;
+  let albumLinks = 0;
   const statuses: Record<string, number> = {};
   for (const [shortcode, payload] of byShortcode) {
     const { data, error } = await supabase.rpc("sync_instagram_post", { p_post: payload });
@@ -137,14 +139,19 @@ async function main() {
       continue;
     }
     ok += 1;
-    const status = (data as { match_status?: string })?.match_status ?? "unknown";
+    const row = data as { match_status?: string; song_id?: string | null; album_id?: string | null };
+    const status = row.match_status ?? "unknown";
     statuses[status] = (statuses[status] ?? 0) + 1;
+    if (row.song_id) songLinks += 1;
+    if (row.album_id) albumLinks += 1;
   }
 
   console.log(`Synced ${ok} unique post(s) from ${existing.join(", ")} (${failed} failed).`);
   for (const [status, count] of Object.entries(statuses)) {
     console.log(`  ${status}: ${count}`);
   }
+  console.log(`  song links: ${songLinks}`);
+  console.log(`  album links: ${albumLinks}`);
 }
 
 main().catch((error) => {

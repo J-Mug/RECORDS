@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { CityMusic } from "@/components/landing/CityMusic";
 import { ExampleBanner } from "@/components/landing/ExampleBanner";
 import { Footer } from "@/components/landing/Footer";

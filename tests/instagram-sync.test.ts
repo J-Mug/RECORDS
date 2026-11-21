@@ -75,6 +75,11 @@ describe("Instagram archive sync", () => {
   let artistName = "";
   let artistId = "";
   let songId = "";
+  let albumTitle = "";
+  let albumId = "";
+  let yonezuId = "";
+  let yoasobiAlbumTitle = "";
+  let yoasobiAlbumId = "";
   let iruliId = "";
   let shopId = "";
 
@@ -99,6 +104,31 @@ describe("Instagram archive sync", () => {
     songTitle = chosen.title;
     artistName = artist?.name ?? "";
     artistId = artist?.id ?? chosen.primary_artist_id;
+    const { data: songAlbum } = await publicClient
+      .from("song")
+      .select("primary_album_id, album:primary_album_id (id, title)")
+      .eq("id", songId)
+      .single();
+    const album = Array.isArray(songAlbum?.album) ? songAlbum?.album[0] : songAlbum?.album;
+    albumId = album?.id ?? songAlbum?.primary_album_id ?? "";
+    albumTitle = album?.title ?? "";
+    const { data: yonezu } = await publicClient
+      .from("artist")
+      .select("id")
+      .eq("name", "米津玄師")
+      .eq("status", "PUBLISHED")
+      .maybeSingle();
+    yonezuId = yonezu?.id ?? "";
+    const { data: yoasobiAlbum } = await publicClient
+      .from("album")
+      .select("id, title, artist:primary_artist_id (name)")
+      .eq("title", "THE BOOK")
+      .eq("status", "PUBLISHED")
+      .maybeSingle();
+    yoasobiAlbumId = yoasobiAlbum?.id ?? "";
+    yoasobiAlbumTitle = yoasobiAlbum?.title ?? "";
+    if (!yoasobiAlbumId) throw new Error("Need published album THE BOOK for album-match fixture");
+    if (!yonezuId) throw new Error("Need published artist 米津玄師 for alias fixture");
     const { data: iruli } = await publicClient.from("profiles").select("id").eq("handle", "iruli").single();
     iruliId = iruli!.id;
     const { data: shop } = await publicClient.from("shop").select("id").eq("user_id", iruliId).single();
@@ -150,6 +180,38 @@ describe("Instagram archive sync", () => {
         slide_count: 1,
         slide_paths: ["/workspace/instagram/drafts/nope"],
         sources: [],
+        youtube_url: null,
+        musicbrainz_id: null,
+      },
+      {
+        posted_at: "2026-11-11T16:30:00+09:00",
+        ig_url: `https://www.instagram.com/p/${PREFIX}album/`,
+        ig_shortcode: `${PREFIX}album`,
+        artist: "YOASOBI",
+        song: null,
+        album: yoasobiAlbumTitle || "THE BOOK",
+        topic: "앨범 매칭 테스트",
+        caption: "album fixture",
+        hashtags: ["#이루릴의JPOP아카이브"],
+        slide_count: 4,
+        slide_paths: ["/workspace/instagram/drafts/should-not-be-stored"],
+        sources: ["official"],
+        youtube_url: null,
+        musicbrainz_id: null,
+      },
+      {
+        posted_at: "2026-11-10T16:30:00+09:00",
+        ig_url: `https://www.instagram.com/p/${PREFIX}alias/`,
+        ig_shortcode: `${PREFIX}alias`,
+        artist: "요네즈 켄시",
+        song: null,
+        album: null,
+        topic: "한글 아티스트명 매칭 테스트",
+        caption: "alias fixture",
+        hashtags: ["#이루릴의JPOP아카이브"],
+        slide_count: 1,
+        slide_paths: [],
+        sources: ["official"],
         youtube_url: null,
         musicbrainz_id: null,
       },
@@ -207,15 +269,16 @@ describe("Instagram archive sync", () => {
     const anon = client();
     const { data: posts, error } = await anon
       .from("instagram_post")
-      .select("shortcode, match_status, song_id, artist_id, candidate_id, topic, youtube_url")
+      .select("shortcode, match_status, song_id, artist_id, album_id, candidate_id, topic, youtube_url")
       .like("shortcode", `${PREFIX}%`)
       .order("shortcode");
     assert.equal(error, null);
-    assert.equal(posts?.length, 3);
+    assert.equal(posts?.length, 5);
 
     const songPost = posts!.find((row) => row.shortcode === `${PREFIX}song`);
     assert.equal(songPost?.match_status, "MATCHED_SONG");
     assert.equal(songPost?.song_id, songId);
+    if (albumId) assert.equal(songPost?.album_id, albumId);
     assert.equal(songPost?.topic, "테스트 진열");
     assert.equal(songPost?.youtube_url, "https://www.youtube.com/watch?v=irulifake001");
 
@@ -225,9 +288,22 @@ describe("Instagram archive sync", () => {
     assert.equal(artistPost?.song_id, null);
 
     const unmatched = posts!.find((row) => row.shortcode === `${PREFIX}unmatched`);
-    assert.equal(unmatched?.match_status, "UNMATCHED");
+    assert.equal(unmatched?.match_status, "NEEDS_REVIEW");
     assert.equal(unmatched?.song_id, null);
     assert.ok(unmatched?.candidate_id);
+
+    const albumPost = posts!.find((row) => row.shortcode === `${PREFIX}album`);
+    assert.equal(albumPost?.match_status, "MATCHED_ALBUM");
+    assert.equal(albumPost?.song_id, null);
+    assert.equal(albumPost?.album_id, yoasobiAlbumId);
+    assert.ok(albumPost?.artist_id);
+    assert.equal(albumPost?.candidate_id, null);
+
+    const aliasPost = posts!.find((row) => row.shortcode === `${PREFIX}alias`);
+    assert.equal(aliasPost?.match_status, "MATCHED_ARTIST");
+    assert.equal(aliasPost?.song_id, null);
+    assert.equal(aliasPost?.artist_id, yonezuId);
+    assert.equal(aliasPost?.candidate_id, null);
 
     const { data: shopItems } = await anon.from("shop_item").select("song_id, note").eq("shop_id", shopId).eq("song_id", songId);
     assert.equal(shopItems?.length, 1);
@@ -249,7 +325,7 @@ describe("Instagram archive sync", () => {
       .select("status, candidate_kind, song_name, artist_name")
       .eq("id", unmatched!.candidate_id)
       .single();
-    assert.equal(candidate?.status, "PENDING");
+    assert.equal(candidate?.status, "NEEDS_REVIEW");
     assert.equal(candidate?.candidate_kind, "SONG");
     assert.equal(candidate?.song_name, "없는곡ABC");
 
