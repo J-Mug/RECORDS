@@ -11,9 +11,15 @@
  *
  * Usage:
  *   npx tsx scripts/ingest-musicbrainz.ts
+ *   npx tsx scripts/ingest-musicbrainz.ts --targets-file scripts/instagram-mb-targets.json
+ *   npx tsx scripts/ingest-musicbrainz.ts --targets-file scripts/instagram-mb-targets.json --dry-run
+ *
+ * --targets-file ingests only the listed artists / release groups / recordings
+ * (not whole discographies). Already-seen MBIDs are skipped.
  *
  * If SUPABASE_SERVICE_ROLE_KEY is set in .env.local, rows are inserted
- * via the Data API. Otherwise a dump is written for MCP execute_sql.
+ * via the Data API unless --dry-run is set. Otherwise a dump is written
+ * for MCP execute_sql.
  */
 import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -618,18 +624,249 @@ async function insertViaSupabase(url: string, serviceKey: string) {
   return { insertedCandidates };
 }
 
+
+type IngestTarget = {
+  label: string;
+  artist_name: string;
+  artist_mbid: string;
+  include_artist?: boolean;
+  album_name?: string | null;
+  album_mbid?: string | null;
+  release_mbid?: string | null;
+  song_name?: string | null;
+  song_mbid?: string | null;
+};
+
+type TargetsFile = {
+  targets?: IngestTarget[];
+  not_found?: Array<{ post_artist?: string; post_song?: string; reason?: string }>;
+};
+
+function parseArgs(argv: string[]) {
+  let targetsFile: string | null = null;
+  let dryRun = false;
+  for (let i = 0; i < argv.length; i += 1) {
+    if (argv[i] === "--targets-file" && argv[i + 1]) {
+      targetsFile = argv[i + 1];
+      i += 1;
+    } else if (argv[i] === "--dry-run") {
+      dryRun = true;
+    }
+  }
+  return { targetsFile, dryRun };
+}
+
+async function loadExistingMbids(url: string, serviceKey: string) {
+  const { createClient } = await import("@supabase/supabase-js");
+  const supabase = createClient(url, serviceKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data, error } = await supabase
+    .from("music_candidate")
+    .select("artist_mbid, album_mbid, song_mbid, candidate_kind")
+    .eq("source", SOURCE);
+  if (error) throw new Error(`load existing candidates: ${error.message}`);
+  for (const row of data ?? []) {
+    if (row.candidate_kind === "ARTIST" && row.artist_mbid) seenArtist.add(row.artist_mbid);
+    if (row.candidate_kind === "ALBUM" && row.album_mbid) seenAlbum.add(row.album_mbid);
+    if (row.candidate_kind === "SONG" && row.song_mbid) seenSong.add(row.song_mbid);
+  }
+  const { data: published } = await supabase
+    .from("external_source")
+    .select("entity_type, external_id")
+    .eq("source", "musicbrainz")
+    .in("entity_type", ["ARTIST", "ALBUM", "SONG"]);
+  for (const row of published ?? []) {
+    if (row.entity_type === "ARTIST") seenArtist.add(row.external_id);
+    if (row.entity_type === "ALBUM") seenAlbum.add(row.external_id);
+    if (row.entity_type === "SONG") seenSong.add(row.external_id);
+  }
+  console.log(
+    `Existing MusicBrainz MBIDs: ${seenArtist.size} artists, ${seenAlbum.size} albums, ${seenSong.size} songs`,
+  );
+}
+
+function addAlbumCover(albumRow: CandidateRow, releaseGroupId: string) {
+  const caaUrl = `https://coverartarchive.org/release-group/${releaseGroupId}/front-250`;
+  const caaUrlLg = `https://coverartarchive.org/release-group/${releaseGroupId}/front-500`;
+  media.push({
+    entity_type: "CANDIDATE",
+    entity_id: albumRow.id,
+    asset_type: "ALBUM_COVER",
+    source_type: "COVER_ART_ARCHIVE",
+    source_url: caaUrl,
+    original_url: caaUrlLg,
+    rights_type: "UNAVAILABLE",
+    license_type: "hotlink-reference",
+    license_source: CAA_TERMS,
+    attribution_required: true,
+    attribution_text: "Cover: Cover Art Archive",
+    cached: false,
+    status: "NEEDS_REVIEW",
+  });
+}
+
+async function ingestTarget(target: IngestTarget) {
+  console.log(`\n→ ${target.label}`);
+  const artist = await mbFetch<MbArtist>(`/artist/${target.artist_mbid}?fmt=json`);
+  console.log(`  ${artist.name} (${artist.id})`);
+
+  if (target.include_artist) {
+    if (seenArtist.has(artist.id)) {
+      console.log(`  skip artist (already present) ${artist.id}`);
+    } else {
+      seenArtist.add(artist.id);
+      const artistRow = addCandidate({
+        source_url: `https://musicbrainz.org/artist/${artist.id}`,
+        artist_name: artist.name,
+        album_name: null,
+        song_name: null,
+        release_date: null,
+        candidate_kind: "ARTIST",
+        artist_mbid: artist.id,
+        album_mbid: null,
+        song_mbid: null,
+        metadata: {
+          seed_label: target.label,
+          name_sort: artist["sort-name"] ?? null,
+          artist_disambiguation: artist.disambiguation ?? null,
+          country: artist.country ?? null,
+          type: artist.type ?? null,
+          targeted: true,
+        },
+      });
+      addSource(artistRow, artist.id, artistRow.source_url);
+    }
+  } else {
+    seenArtist.add(artist.id);
+  }
+
+  let albumTitle = target.album_name ?? null;
+  let albumDate: string | null = null;
+  if (target.album_mbid) {
+    const rg = await mbFetch<MbReleaseGroup>(
+      `/release-group/${target.album_mbid}?inc=releases&fmt=json`,
+    );
+    albumTitle = rg.title;
+    albumDate = pickDate(rg["first-release-date"]);
+    if (seenAlbum.has(rg.id)) {
+      console.log(`  skip album (already present) ${rg.title} ${rg.id}`);
+    } else {
+      seenAlbum.add(rg.id);
+      const albumRow = addCandidate({
+        source_url: `https://musicbrainz.org/release-group/${rg.id}`,
+        artist_name: artist.name,
+        album_name: rg.title,
+        song_name: null,
+        release_date: albumDate,
+        candidate_kind: "ALBUM",
+        artist_mbid: artist.id,
+        album_mbid: rg.id,
+        song_mbid: null,
+        metadata: {
+          primary_type: rg["primary-type"] ?? null,
+          secondary_types: rg["secondary-types"] ?? [],
+          first_release_date: rg["first-release-date"] ?? null,
+          name_sort: artist["sort-name"] ?? null,
+          artist_disambiguation: artist.disambiguation ?? null,
+          targeted: true,
+        },
+      });
+      addSource(albumRow, rg.id, albumRow.source_url);
+      addAlbumCover(albumRow, rg.id);
+      console.log(`  album: ${rg.title} (${rg.id})`);
+    }
+  }
+
+  if (target.song_mbid) {
+    if (seenSong.has(target.song_mbid)) {
+      console.log(`  skip song (already present) ${target.song_mbid}`);
+      return;
+    }
+    const rec = await mbFetch<{ id: string; title: string; length?: number; disambiguation?: string }>(
+      `/recording/${target.song_mbid}?fmt=json`,
+    );
+    seenSong.add(rec.id);
+    let duration: number | null = rec.length ?? null;
+    let trackPosition: number | null = null;
+    let releaseTitle: string | null = null;
+    let releaseCountry: string | null = null;
+    if (target.release_mbid) {
+      const full = await mbFetch<MbRelease>(`/release/${target.release_mbid}?inc=recordings&fmt=json`);
+      releaseTitle = full.title ?? null;
+      releaseCountry = full.country ?? null;
+      const tracks = (full.media ?? []).flatMap((m) => m.tracks ?? []);
+      const track = tracks.find((row) => row.recording?.id === rec.id);
+      if (track) {
+        duration = rec.length ?? track.length ?? duration;
+        trackPosition = track.position ?? null;
+      }
+    }
+    const songRow = addCandidate({
+      source_url: `https://musicbrainz.org/recording/${rec.id}`,
+      artist_name: artist.name,
+      album_name: albumTitle,
+      song_name: rec.title,
+      release_date: albumDate,
+      candidate_kind: "SONG",
+      artist_mbid: artist.id,
+      album_mbid: target.album_mbid ?? null,
+      song_mbid: rec.id,
+      metadata: {
+        duration_ms: duration,
+        track_position: trackPosition,
+        release_mbid: target.release_mbid ?? null,
+        release_title: releaseTitle,
+        release_country: releaseCountry,
+        recording_disambiguation: rec.disambiguation ?? null,
+        name_sort: artist["sort-name"] ?? null,
+        artist_disambiguation: artist.disambiguation ?? null,
+        targeted: true,
+      },
+    });
+    addSource(songRow, rec.id, songRow.source_url);
+    console.log(`  song: ${rec.title} (${rec.id})`);
+  }
+}
+
 async function main() {
   loadEnvLocal();
+  const { targetsFile, dryRun } = parseArgs(process.argv.slice(2));
   const outDir = resolve(process.cwd(), "scripts/.output");
   mkdirSync(outDir, { recursive: true });
 
-  for (const entry of ARTISTS) {
-    try {
-      await ingestArtist(entry);
-    } catch (err) {
-      const msg = `${entry.label}: ${(err as Error).message}`;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (url && serviceKey) {
+    await loadExistingMbids(url, serviceKey);
+  }
+
+  if (targetsFile) {
+    const raw = JSON.parse(readFileSync(resolve(process.cwd(), targetsFile), "utf8")) as TargetsFile | IngestTarget[];
+    const file = Array.isArray(raw) ? { targets: raw } : raw;
+    for (const missing of file.not_found ?? []) {
+      const msg = `Not in MusicBrainz: ${missing.post_artist ?? "?"} / ${missing.post_song ?? "?"} — ${missing.reason ?? ""}`;
       errors.push(msg);
-      console.warn(`! ${msg}`);
+      console.warn(`  ! ${msg}`);
+    }
+    for (const target of file.targets ?? []) {
+      try {
+        await ingestTarget(target);
+      } catch (err) {
+        const msg = `${target.label}: ${(err as Error).message}`;
+        errors.push(msg);
+        console.warn(`! ${msg}`);
+      }
+    }
+  } else {
+    for (const entry of ARTISTS) {
+      try {
+        await ingestArtist(entry);
+      } catch (err) {
+        const msg = `${entry.label}: ${(err as Error).message}`;
+        errors.push(msg);
+        console.warn(`! ${msg}`);
+      }
     }
   }
 
@@ -652,9 +889,9 @@ async function main() {
   }
   writeFileSync(resolve(outDir, "summary.json"), JSON.stringify({ counts, errors }, null, 2));
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (url && serviceKey) {
+  if (dryRun) {
+    console.log("Dry run: no database writes. Dump is in scripts/.output/.");
+  } else if (url && serviceKey) {
     console.log("Inserting via Supabase service role…");
     const result = await insertViaSupabase(url, serviceKey);
     console.log("Inserted (service role):", result);

@@ -1,0 +1,122 @@
+{
+  "comment": "Specific MusicBrainz entities named by the 12 Instagram posts awaiting review. Do not ingest whole discographies. のらねこ and 春が灯り were not in MusicBrainz on 2026-11-22.",
+  "not_found": [
+    {
+      "post_artist": "Aimer",
+      "post_song": "のらねこ",
+      "reason": "No Aimer recording or release-group titled のらねこ / NORANEKO / ノラネコ / 野良猫 in MusicBrainz."
+    },
+    {
+      "post_artist": "요네즈 켄시",
+      "post_song": "春が灯り",
+      "reason": "No 米津玄師 recording or release-group titled 春が灯り / 春が灯る in MusicBrainz (loose search only hits the unrelated 春雷)."
+    }
+  ],
+  "targets": [
+    {
+      "label": "Lemon",
+      "artist_name": "米津玄師",
+      "artist_mbid": "09d4a85c-4916-4b4e-bc96-c4cfcf371046",
+      "include_artist": false,
+      "album_name": "Lemon",
+      "album_mbid": "6821e0d9-cdf8-4430-a556-9e999708d6cd",
+      "release_mbid": "dad6dbbe-68a8-4b31-8c60-2fd287360d50",
+      "song_name": "Lemon",
+      "song_mbid": "79a8b80c-018d-4004-b3ff-cc10d21a3ddd"
+    },
+    {
+      "label": "KILLA",
+      "artist_name": "YOASOBI",
+      "artist_mbid": "df6c619f-4334-43e2-8b6a-4a32af1e4f85",
+      "include_artist": false,
+      "album_name": "KILLA",
+      "album_mbid": "7e101544-85a9-42e3-bdef-7941ba7e86df",
+      "release_mbid": "4df1264b-519e-4c4e-a7bc-7a48a55671a8",
+      "song_name": "KILLA",
+      "song_mbid": "ced87654-b725-4c1a-a30d-6b54d4c59473"
+    },
+    {
+      "label": "シンカ",
+      "artist_name": "Ado",
+      "artist_mbid": "e134b52f-2e9e-4734-9bc3-bea9648d1fa1",
+      "include_artist": false,
+      "album_name": "シンカ",
+      "album_mbid": "6b628ad4-27b4-4bff-8d5c-bf799777c17c",
+      "release_mbid": "b77cbffb-938e-4e8d-bdd9-8648b7519e96",
+      "song_name": "シンカ",
+      "song_mbid": "2c5cc1f4-25e1-498c-94e0-2db2fb266241"
+    },
+    {
+      "label": "Brand New / POPS",
+      "artist_name": "Mrs. GREEN APPLE",
+      "artist_mbid": "9ce674b7-5180-41f7-9ac2-95dc0d8a0ed2",
+      "include_artist": false,
+      "album_name": "POPS",
+      "album_mbid": "2ecfc609-f42d-46db-80f6-685201188e57",
+      "release_mbid": "d35319ee-e0d8-472a-9b71-673d883b93e2",
+      "song_name": "Brand New",
+      "song_mbid": "dff00c41-0af6-4a2e-a908-a89196bab78b"
+    },
+    {
+      "label": "IRIS OUT",
+      "artist_name": "米津玄師",
+      "artist_mbid": "09d4a85c-4916-4b4e-bc96-c4cfcf371046",
+      "include_artist": false,
+      "album_name": "IRIS OUT / JANE DOE",
+      "album_mbid": "36aa4a46-5ce3-453b-8306-7c33062a95ea",
+      "release_mbid": "6ece5ea3-73d6-4a0c-bd2c-671abf9d5133",
+      "song_name": "IRIS OUT",
+      "song_mbid": "83dbaf01-8a59-47c8-971c-e0b07cd12c95"
+    },
+    {
+      "label": "City Blue",
+      "artist_name": "Mili",
+      "artist_mbid": "d2a92ee2-27ce-4e71-bfc5-12e34fe8ef56",
+      "include_artist": true,
+      "album_name": "City Blue",
+      "album_mbid": "a893471a-419a-4d31-8162-b38a8a174f27",
+      "release_mbid": "9c9b2679-470c-47d9-96ae-76e5688e87af",
+      "song_name": "City Blue",
+      "song_mbid": "b25f8e32-2e9f-43f9-a6eb-a0e0c987f796"
+    },
+    {
+      "label": "AIYOU",
+      "artist_name": "Eve",
+      "artist_mbid": "66bdd1c9-d1c5-40b7-a487-5061fffbd87d",
+      "include_artist": true,
+      "album_name": "AIYOU",
+      "album_mbid": "ab49b67d-4848-4e5d-b970-5258e5d3eb36",
+      "release_mbid": "6833c5b2-ed54-4b15-a668-48e3a92f6cce",
+      "song_name": "AIYOU",
+      "song_mbid": "9d846ca6-d932-4aa4-9712-3e20f0a3c24d"
+    },
+    {
+      "label": "雲を抜け風下へ私だけ",
+      "artist_name": "ヨルシカ",
+      "artist_mbid": "dfc6a151-3792-4695-8fda-f64723eaa788",
+      "include_artist": false,
+      "album_name": "雲を抜け風下へ私だけ",
+      "album_mbid": "773e3a2b-8277-4158-bd6d-afd1c8659291",
+      "release_mbid": "a2a79df4-7a30-4ffd-a71f-4fab8acd36e1",
+      "song_name": "雲を抜け風下へ私だけ",
+      "song_mbid": "225f0b74-9333-4ff8-9146-54ad97b003d7"
+    },
+    {
+      "label": "娑婆堕罵 -Shabadaba-",
+      "artist_name": "RADWIMPS",
+      "artist_mbid": "6f500293-7396-4903-b4fd-118127d06f9e",
+      "include_artist": false,
+      "album_name": "娑婆堕罵 -Shabadaba-",
+      "album_mbid": "06e04351-8523-456b-a21d-763f5397155c",
+      "release_mbid": "b4172fcc-ffc4-4df8-9b06-cc3e2189a5de",
+      "song_name": "娑婆堕罵 -Shabadaba-",
+      "song_mbid": "4974b26d-5d0b-4d3c-8e56-64a1dadb3cb3"
+    },
+    {
+      "label": "yama",
+      "artist_name": "yama",
+      "artist_mbid": "a3becc83-9dab-48c6-9513-e269e1e4c49a",
+      "include_artist": true
+    }
+  ]
+}
